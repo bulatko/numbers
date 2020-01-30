@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="t.shn-host.ru">
+    <serverData>
+      <paths name="t.shn-host.ru">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/suojzlvz/public_html/numbers" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>
