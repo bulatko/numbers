@@ -19,7 +19,7 @@ class Table
         $client = new Google_Client();
         $client->useApplicationDefaultCredentials();
 
-        $client->addScope( 'https://www.googleapis.com/auth/spreadsheets' );
+        $client->addScope('https://www.googleapis.com/auth/spreadsheets');
 
         $service = new Google_Service_Sheets( $client );
 
