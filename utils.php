@@ -37,13 +37,13 @@ function sendMessageMain($token, $id, $msg)
     //
     global $payeer, $isAdmin;
     $arr = [];
-    $arr[] = [createKeyboardButton("😎 Для друзей!"), createKeyboardButton("📡 Радар")];
-    $arr[] = [createKeyboardButton("🏢 Города")];
-    $arr[] = [createKeyboardButton("💰 Баланс"), createKeyboardButton("💁 Поддержка")];
+
+    $arr[] = [createCallbackData("Подобрать номер", "findNumber")];
+
     if ($isAdmin) {
-        $arr[] = [createKeyboardButton("Admin панель")];
+        $arr[] = [createCallbackData("Admin панель", "admin")];
     }
-    return sendMessage($token, $id, $msg, createKeyboardMenu(
+    return sendMessage($token, $id, $msg, createReplyMarkup(
         $arr
     ));
 
@@ -193,7 +193,7 @@ function makeInline($id, $inlineId)
     }
     $l = 0;
 
-    $urlArray = json_decode($row[1],1);
+    $urlArray = json_decode($row[1], 1);
     for ($i = 0; $i < count($urlArray) - 1; $i++) {
         $l = 1;
         $res = get_content($urlArray[$i][0] . "&chat_id=$id");
@@ -234,5 +234,30 @@ function jsonFromSQL($json)
 
     $json = str_replace('ёёёёЁ', '\\u', $json);
     return $json;
+}
+
+function split_numbers($numbers)
+{
+    $c = 0;
+    $arr = [];
+    while ($c != strlen($numbers) && strlen($numbers)) {
+
+
+        $c = min(3000, strlen($numbers));
+        $c0 = $c;
+        while ($numbers[$c - 1] != '.') {
+            $c--;
+            if($c < 0) {
+                $c = $c0;
+                break;
+            }
+        }
+
+        if($c > 2)
+        $arr[] = substr($numbers, 0, $c);
+        $numbers = substr($numbers, $c, strlen($numbers) - $c);
+
+    }
+    return $arr;
 }
 

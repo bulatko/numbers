@@ -1,6 +1,7 @@
 <?php
 require "CONSTS.php";
-set_time_limit(3000);
+set_time_limit(0);
+ini_set('memory_limit', '-1');
 //ini_set('display_errors', 'Off');
 header("Content-Type: text/html; charset=utf-8");
 

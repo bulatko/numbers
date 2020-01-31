@@ -1,15 +1,20 @@
 <?php
 //171961446
+require 'CONSTS.php';
+require 'Table.php';
+require 'bd.php';
+require 'utils.php';
 $fId = 451604411;
 $kk = file_get_contents('php://input');
 $output = json_decode($kk, TRUE);
-include("bd.php");
 $t = time();
 if (isset($output['callback_query']['data'])) {
     $id = $output['callback_query']['message']['chat']['id'];
     $data = $output['callback_query']['data'];
 } else {
-    if (!isset($output['message']['chat']['id'])) exit();
+    if (!isset($output['message']['chat']['id'])) {
+        exit();
+    }
     $id = $output['message']['chat']['id'];
     $message = $output['message']['text'];
     $message_id = $output['message']['message_id'];
@@ -22,8 +27,7 @@ $adminsArray = [
     887097236,
     236910420
 ];
-if (in_array($id,$adminsArray)) $isAdmin = 1;
-
+if (in_array($id, $adminsArray)) $isAdmin = 1;
 $exists = (bool)mysqli_num_rows($mysqli->query("SELECT * FROM users WHERE id = '$id'"));
 if (!$exists) {
     $username = $output['message']['from']['first_name'] . " " . $output['message']['from']['last_name'];
@@ -34,13 +38,7 @@ if (!$exists) {
 ''
 )
 ");
-    sendPhoto($token,$id,'AgADAgADyKwxGwgaYUt35BT65ZNhYd_rtw8ABAEAAwIAA3gAA_YSAwABFgQ',"💎Бот моментальных продаж💎
-
-✅Работаем 24/7✅
-
-💸Лидер рынка💸
-
-Большой ассортимент сладостей👌");
+    sendMessageMain($token, $id, "Регистрация прошла успешно");
 }
 $result = $mysqli->query("SELECT * FROM users WHERE id = '$id' limit 1");
 $row = mysqli_fetch_row($result);
@@ -160,28 +158,50 @@ if ($data) {
         $mysqli->query("update buttons set link = '$urlArray' WHERE id = '$inlineId'");
         answerCallbackQuery($token, $callback_query_id, $text);
         makeInline($id, $inlineId);
-    } else
-        if ($data == 'sendQiwi') {
-            editMessageText($token, $id, $message_id, "Введи номер кошелька, на который хочешь перевести деньги и сумму через пробел. \n" .
-                "Пример: +79123456789 100", createReplyMarkup([
-                [createCallbackData("Отмена", "exit")]
-            ]));
-            setLastMessage($mysqli, $id, 'sendQiwi');
-            exit();
-        } else
-            if ($data == 'changeQiwi') {
-                editMessageText($token, $id, $message_id, "Введи номер нового кошелька и его токен через пробел. \n" .
-                    "Пример: +79123456789 1g723sm1x2g0rif0gefw9009", createReplyMarkup([
-                    [createCallbackData("Отмена", "exit")]
-                ]));
-                setLastMessage($mysqli, $id, 'changeQiwi');
-                exit();
-            } else
-                if ($data == 'exit') {
-                    deleteMessage($token, $id, $message_id);
-                    sendMessageMain($token, $id, "Привет, $username");
-                    setLastMessage($mysqli, $id, "");
-                }
+    }
+    else if($data == 'findNumber'){
+        deleteMessage($token, $id, $message_id);
+
+        sendMessage($token, $id, "Выбери интересующего тебя оператора", createReplyMarkup([
+            [createCallbackData("МТС", "operator.0")],
+            [createCallbackData("Мегафон", "operator.1")],
+            [createCallbackData("Билайн", "operator.2")],
+            [createCallbackData("Теле2", "operator.3")],
+            [createCallbackData("Безлимит", "operator.4")],
+            [createCallbackData("Все операторы", "operator.-1")],
+        ]));
+    }
+    else if(stristr($data, 'operator.')){
+        deleteMessage($token, $id, $message_id);
+        $operator = explode('.', $data)[1];
+        sendMessage($token, $id, "Выбери разряд номера", createReplyMarkup([
+            [createCallbackData("Бронза", "numberType.$operator.0")],
+            [createCallbackData("Серебро", "numberType.$operator.1")],
+            [createCallbackData("Золото", "numberType.$operator.2")],
+            [createCallbackData("Платина", "numberType.$operator.3")],
+            [createCallbackData("Бриллиант", "numberType.$operator.4")],
+            [createCallbackData("Все разряды", "numberType.$operator.-1")],
+            [createCallbackData("Назад", "findNumber")],
+            [createCallbackData("Выход", "exit")],
+
+        ]));
+    }
+    else if(stristr($data, 'numberType.')){
+        deleteMessage($token, $id, $message_id);
+        $operator = explode('.', $data)[1];
+        $numberType = explode('.', $data)[2];
+        sendMessage($token, $id, "Введи цифры, которые будут содержаться в твоем номере.\n" .
+            "Например: 777", createReplyMarkup([
+            [createCallbackData("Назад", "operator.$operator")],
+            [createCallbackData("Выход", "exit")],
+        ]));
+        setLastMessage($mysqli, $id, $data);
+    }
+    else if ($data == 'exit') {
+            deleteMessage($token, $id, $message_id);
+            sendMessageMain($token, $id, "Привет, $username");
+            setLastMessage($mysqli, $id, "");
+        }
     exit();
 } else if ($message == '😎 Для друзей!') {
     $inlineId = 1;
@@ -194,18 +214,18 @@ if ($data) {
 
 Для продолжения нажмите на кнопку:
 🌐 <b>Поделиться местоположением</b>';
-    sendMessage($token,$id,$text,createKeyboardMenu([
+    sendMessage($token, $id, $text, createKeyboardMenu([
         [createKeyboardButton("🌐 Поделиться местоположением")],
         [createKeyboardButton("❌ Отменить 'Радар'")],
     ]));
 
-}  else if ($message == '🌐 Поделиться местоположением') {
+} else if ($message == '🌐 Поделиться местоположением') {
 
     $inlineId = 1496;
     makeInline($id, $inlineId);
 
-}   else if ($message == '❌ Отменить \'Радар\'') {
-sendMessageMain($token,$id,"Главное меню");
+} else if ($message == '❌ Отменить \'Радар\'') {
+    sendMessageMain($token, $id, "Главное меню");
 
 } else if ($message == '🏢 Города') {
     $inlineId = 3;
@@ -266,7 +286,7 @@ sendMessageMain($token,$id,"Главное меню");
             $c = 1;
         }
         if (isset($url)) {
-            $url = json_encode([[$url,0]]);
+            $url = json_encode([[$url, 0]]);
             $oldUrl = mysqli_fetch_row($mysqli->query("select * from buttons where id = '$inlineId'"))[1];
             $mysqli->query("update buttons set link = '$url' where id = '$inlineId'");
             if (makeInline($id, $inlineId)) {
@@ -305,7 +325,7 @@ sendMessageMain($token,$id,"Главное меню");
                 $buttonsArray[] = [$button, $buttonId];
                 $buttonsArray = jsonToSQL(json_encode($buttonsArray));
                 $mysqli->query("update buttons set buttons = '$buttonsArray' WHERE id = '$inlineId'");
-                $mysqli->query("insert into buttons values(0,'[[\"https://api.telegram.org/bot$token/sendMessage?parse_mode=html&disable_web_page_preview=1&text=".urlencode("Текст не задан")."\",0]]','[]')");
+                $mysqli->query("insert into buttons values(0,'[[\"https://api.telegram.org/bot$token/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode("Текст не задан") . "\",0]]','[]')");
                 sendMessage($token, $id, "Кнопка добавлена");
                 makeInline($id, $inlineId);
             } else {
@@ -369,7 +389,7 @@ sendMessageMain($token,$id,"Главное меню");
                         ]));
                         exit();
                     }
-                }else {
+                } else {
                     sendMessage($token, $id, "Неверный формат сообщения. Попробуй еще раз", createReplyMarkup([
                         [createCallbackData("Отмена", "exit")]
                     ]));
@@ -379,15 +399,41 @@ sendMessageMain($token,$id,"Главное меню");
 
             } else
 
-            if ($lastMessage == '/json') {
-                sendMessage($token, $id, $kk);
-                exit();
-            } else
-
-                if (stristr($lastMessage, 'test111')) {
-                    sendMessage($token, $id, $message);
+                if ($lastMessage == '/json') {
+                    sendMessage($token, $id, $kk);
                     exit();
+                } else if(stristr($lastMessage, 'numberType.')){
+                    $operator = explode('.', $lastMessage)[1];
+                    $numberType = explode('.', $lastMessage)[2];
+                    $table = new Table();
+                    $numbers = $table->find_numbers($operator, $numberType, $message);
+                    if(count($numbers)){
+                    $text = "Список подходящих номеров:\n";
+                    $numbers = split_numbers($numbers);
+                    for($i = 0; $i < count($numbers) - 1; $i++){
+                        sendMessage($token, $id,$numbers[$i]);
+                    }
+                    sendMessage($token, $id, $numbers[count($numbers) - 1], createReplyMarkup([
+                            [createCallbackData("Искать еще раз", $lastMessage)],
+                            [createCallbackData("Назад", "operator.$operator")],
+                            [createCallbackData("Выход", "exit")],
+                        ]));
+                    } else {
+                        sendMessage($token, $id, "Подходящих номеров не найдено", createReplyMarkup([
+                            [createCallbackData("Искать еще раз", $lastMessage)],
+                            [createCallbackData("Назад", "operator.$operator")],
+                            [createCallbackData("Выход", "exit")],
+                        ]));
+                    }
+
+
+
                 } else
+
+                    if (stristr($lastMessage, 'test111')) {
+                        sendMessage($token, $id, $message);
+                        exit();
+                    } else
 
                         if ($lastMessage == 'sendQiwi') {
 
@@ -445,7 +491,6 @@ sendMessageMain($token,$id,"Главное меню");
                                     } else {
                                         sendMessageMain($token, $id, "Не понимаю о чем ты.");
                                     }
-
 
 
 setLastMessage($mysqli, $id, $message);
