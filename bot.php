@@ -406,6 +406,14 @@ if ($data) {
                     $operator = explode('.', $lastMessage)[1];
                     $numberType = explode('.', $lastMessage)[2];
                     $table = new Table();
+                    if($message == '89' || $message == '9' || $message == '8') {
+                        sendMessage($token, $id, "Все номера содержат '$message', ведите поточнее", createReplyMarkup([
+                            [createCallbackData("Искать еще раз", $lastMessage)],
+                            [createCallbackData("Назад", "operator.$operator")],
+                            [createCallbackData("Выход", "exit")],
+                        ]));
+                        exit();
+                    }
                     $numbers = $table->find_numbers($operator, $numberType, $message);
                     if(count($numbers)){
                     $text = "Список подходящих номеров:\n";
