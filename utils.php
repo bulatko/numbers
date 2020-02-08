@@ -43,9 +43,8 @@ function sendMessageMain($token, $id, $msg)
     if ($isAdmin) {
         $arr[] = [createCallbackData("Admin панель", "admin")];
     }
-    return sendMessage($token, $id, $msg, createReplyMarkup(
-        $arr
-    ));
+    sendMessage($token, $id, $msg);
+    makeInline($token, $id, 1, $arr);
 
 }
 
@@ -178,27 +177,36 @@ function get_content($url, $data = [])
     return $res;
 }
 
-function makeInline($id, $inlineId)
+function makeInline($token, $id, $inlineId, $add = null)
 {
     global $mysqli, $isAdmin;
     $row = mysqli_fetch_row($mysqli->query("select * from buttons where id = '$inlineId'"));
 
     $buttonsArray = $row[2];
     $buttonsArray = json_decode(jsonFromSQL($buttonsArray), true);
-    $opz = [];
+    $parent = $row[3];
+    if($add)
+        $opz = $add;
+    else
+        $opz = [];
     $k = 0;
-    foreach ($buttonsArray as $button) {
-        $opz[] = [createCallbackData(jsonFromSQL($button[0]), "clickButton." . $button[1])];
+    foreach ($buttonsArray as $subButtonsArray) {
+        $opz1 = [];
+        foreach ($subButtonsArray as $button){
+            $opz1[] = createCallbackData(jsonFromSQL($button[0]), "clickButton." . $button[1]);
+        }
         $k = 1;
+        $opz[] = $opz1;
     }
     $l = 0;
-
     $urlArray = json_decode($row[1], 1);
     for ($i = 0; $i < count($urlArray) - 1; $i++) {
         $l = 1;
-        $res = get_content($urlArray[$i][0] . "&chat_id=$id");
+        $url = "https://api.telegram.org/bot" . $token . $urlArray[$i][0] . "&chat_id=$id";
+        $res = get_content($url);
+
     }
-    $link = $urlArray[count($urlArray) - 1][0];
+    $link = "https://api.telegram.org/bot" . $token . $urlArray[count($urlArray) - 1][0];
     if ($isAdmin) {
 
         $opz[] = [createCallbackData("*Добавить кнопку*", "addButton.$inlineId")];
@@ -210,9 +218,12 @@ function makeInline($id, $inlineId)
         if ($k)
             $opz[] = [createCallbackData("*Удалить кнопку*", "deleteButton.$inlineId")];
     }
-
-    $opz[] = [createCallbackData("Назад", "exit")];
-
+    if($inlineId != 1) {
+        if ($parent == 1)
+            $opz[] = [createCallbackData("Назад", "exit")];
+        else
+            $ops[] = [createCallbackData("🔙Назад", "clickButton.$parent"), createCallbackData("❌Выход", "exit")];
+    }
     $link .= "&chat_id=$id&reply_markup=" . createReplyMarkup($opz);
     $res = file_get_contents($link);
     $res = json_decode($res, 1);

@@ -61,6 +61,24 @@ if ($data) {
     } else if (stristr($data, 'addButton.')) {
         deleteMessage($token, $id, $message_id);
         $inlineId = str_replace('addButton.', '', $data);
+        $row = mysqli_fetch_row($mysqli->query("select * from buttons where id = '$inlineId'"));
+        $buttonsArray = $row[2];
+        $buttonsArray = json_decode(jsonFromSQL($buttonsArray), true);
+        $opz = [];
+        $k = 0;
+        foreach ($buttonsArray as $subButtonsArray) {
+            $opz1 = [];
+            foreach ($subButtonsArray as $button){
+                $opz1[] = createCallbackData($button[0], "addButtonAfter.$inlineId." . $button[1]);
+            }
+            $k = 1;
+            $opz[] = $opz1;
+        }
+        $opz[] = [createCallbackData("На новой строке", "addButtonNewLane.$inlineId")];
+        $opz[] = [createCallbackData("Отмена", "exit")];
+        sendMessage($token, $id, "Выберите после какой кнопки установить новую", createReplyMarkup($opz));
+    } else if (stristr($data, 'addButtonAfter.') || stristr($data, 'addButtonNewLane.')) {
+        deleteMessage($token, $id, $message_id);
         sendMessage($token, $id, "Отправь название кнопки", createReplyMarkup([
             [createCallbackData("Отмена", "exit")]
         ]));
@@ -68,7 +86,7 @@ if ($data) {
     } else if (stristr($data, 'clickButton.')) {
         deleteMessage($token, $id, $message_id);
         $inlineId = str_replace('clickButton.', '', $data);
-        makeInline($id, $inlineId);
+        makeInline($token, $id, $inlineId);
         setLastMessage($mysqli, $id, $data);
     } else if (stristr($data, 'deleteButton.')) {
         deleteMessage($token, $id, $message_id);
@@ -79,8 +97,13 @@ if ($data) {
         $buttonsArray = json_decode(jsonFromSQL($buttonsArray), true);
         $opz = [];
         $k = 0;
-        foreach ($buttonsArray as $button) {
-            $opz[] = [createCallbackData($button[0], "destroyButton.$inlineId." . $button[1])];
+        foreach ($buttonsArray as $subButtonsArray) {
+            $opz1 = [];
+            foreach ($subButtonsArray as $button){
+                $opz1[] = createCallbackData($button[0], "destroyButton.$inlineId." . $button[1]);
+            }
+            $k = 1;
+            $opz[] = $opz1;
         }
         $opz[] = [createCallbackData("Отмена", "exit")];
         sendMessage($token, $id, "Выбери кнопку, которую хочешь удалить", createReplyMarkup($opz));
@@ -99,9 +122,14 @@ if ($data) {
         $buttonsArrayNew = [];
         $opz = [];
         $k = 0;
-        foreach ($buttonsArray as $button) {
-            if ($button[1] == $deleteInlineId) continue;
-            $buttonsArrayNew[] = $button;
+        foreach ($buttonsArray as $subButtonsArray) {
+            $opz1 = [];
+            foreach ($subButtonsArray as $button){
+                if ($button[1] == $deleteInlineId) continue;
+                $opz1[] = $button;
+            }
+            $k = 1;
+            $buttonsArrayNew[] = $opz1;
         }
 
         $buttonsArray = jsonToSQL(json_encode($buttonsArrayNew));
@@ -110,7 +138,7 @@ if ($data) {
             jsonToSQL(json_encode($buttonsArrayNew)) . "\n";
         $mysqli->query("update buttons set buttons = '$buttonsArray' WHERE id = '$inlineId'");
         answerCallbackQuery($token, $callback_query_id, $text);
-        makeInline($id, $inlineId);
+        makeInline($token, $id, $inlineId);
     } else if (stristr($data, 'addMessage.')) {
         deleteMessage($token, $id, $message_id);
         $inlineId = str_replace('addMessage.', '', $data);
@@ -126,8 +154,11 @@ if ($data) {
         $urlArray = json_decode(jsonFromSQL($urlArray), true);
         $opz = [];
         $k = 0;
+        if(count($urlArray) == 1){
+            answerCallbackQuery($token, $callback_query_id, "В этом меню всего одно сообщение" );
+        }
         foreach ($urlArray as $url) {
-            get_content($url[0] . "&chat_id=$id&reply_markup=" . createReplyMarkup([
+            get_content("https://api.telegram.org/bot" . $token . $url[0] . "&chat_id=$id&reply_markup=" . createReplyMarkup([
                     [createCallbackData("Удалить", "destroyMessage.$inlineId." . $url[1])]
                 ]));
         }
@@ -156,58 +187,57 @@ if ($data) {
         $urlArray = jsonToSQL(json_encode($urlArrayNew));
 
         $mysqli->query("update buttons set link = '$urlArray' WHERE id = '$inlineId'");
-        answerCallbackQuery($token, $callback_query_id, $text);
-        makeInline($id, $inlineId);
-    }
-    else if($data == 'findNumber'){
+        if($inlineId == 1) {
+            sendMessageMain($token, $id, "Сообщение удалено");
+        } else {
+
+            sendMessage($token, $id, "Сообщение удалено");
+            makeInline($token, $id, $inlineId);
+        }
+
+    } else if ($data == 'findNumber') {
         deleteMessage($token, $id, $message_id);
 
         sendMessage($token, $id, "Выбери интересующего тебя оператора", createReplyMarkup([
-            [createCallbackData("МТС", "operator.0")],
-            [createCallbackData("Мегафон", "operator.1")],
-            [createCallbackData("Билайн", "operator.2")],
-            [createCallbackData("Теле2", "operator.3")],
-            [createCallbackData("Безлимит", "operator.4")],
+            [createCallbackData("МТС", "operator.0"),
+                createCallbackData("Билайн", "operator.2"),
+                createCallbackData("Теле2", "operator.3")],
+            [createCallbackData("Мегафон", "operator.1"),
+                createCallbackData("Безлимит", "operator.4")],
             [createCallbackData("Все операторы", "operator.-1")],
+            [createCallbackData("❌Выход", "exit")]
         ]));
-    }
-    else if(stristr($data, 'operator.')){
+    } else if (stristr($data, 'operator.')) {
         deleteMessage($token, $id, $message_id);
         $operator = explode('.', $data)[1];
         sendMessage($token, $id, "Выбери разряд номера", createReplyMarkup([
-            [createCallbackData("Бронза", "numberType.$operator.0")],
-            [createCallbackData("Серебро", "numberType.$operator.1")],
-            [createCallbackData("Золото", "numberType.$operator.2")],
-            [createCallbackData("Платина", "numberType.$operator.3")],
-            [createCallbackData("Бриллиант", "numberType.$operator.4")],
+            [createCallbackData("🥉 Бронза", "numberType.$operator.0"),
+                createCallbackData("🥈 Серебро", "numberType.$operator.1"),
+                createCallbackData("🥇Золото", "numberType.$operator.2")],
+            [createCallbackData("💍Платина", "numberType.$operator.3"),
+                createCallbackData("💎Бриллиант", "numberType.$operator.4")],
             [createCallbackData("Все разряды", "numberType.$operator.-1")],
-            [createCallbackData("Назад", "findNumber")],
-            [createCallbackData("Выход", "exit")],
+            [createCallbackData("🔙Назад", "findNumber"),
+                createCallbackData("❌Выход", "exit")],
 
         ]));
-    }
-    else if(stristr($data, 'numberType.')){
+    } else if (stristr($data, 'numberType.')) {
         deleteMessage($token, $id, $message_id);
         $operator = explode('.', $data)[1];
         $numberType = explode('.', $data)[2];
         sendMessage($token, $id, "Введи цифры, которые будут содержаться в твоем номере.\n" .
             "Например: 777", createReplyMarkup([
-            [createCallbackData("Назад", "operator.$operator")],
-            [createCallbackData("Выход", "exit")],
+            [createCallbackData("🔙Назад", "operator.$operator")],
+            [createCallbackData("❌Выход", "exit")],
         ]));
         setLastMessage($mysqli, $id, $data);
+    } else if ($data == 'exit') {
+        deleteMessage($token, $id, $message_id);
+        sendMessageMain($token, $id, "Привет, $username");
+        setLastMessage($mysqli, $id, "");
     }
-    else if ($data == 'exit') {
-            deleteMessage($token, $id, $message_id);
-            sendMessageMain($token, $id, "Привет, $username");
-            setLastMessage($mysqli, $id, "");
-        }
     exit();
-} else if ($message == '😎 Для друзей!') {
-    $inlineId = 1;
-    makeInline($id, $inlineId);
-
-} else if ($message == '📡 Радар') {
+}  else if ($message == '📡 Радар') {
     $text = 'В разделе <b>Радар</b> вы можете узнать какие клады находятся ближе всего к вам в пешей доступности и купить любой из них.
 
 Клады в списке отсортированы по дальности относительно вашего положения (чем ближе клад - тем он выше в списке).
@@ -219,80 +249,50 @@ if ($data) {
         [createKeyboardButton("❌ Отменить 'Радар'")],
     ]));
 
-} else if ($message == '🌐 Поделиться местоположением') {
-
-    $inlineId = 1496;
-    makeInline($id, $inlineId);
-
-} else if ($message == '❌ Отменить \'Радар\'') {
-    sendMessageMain($token, $id, "Главное меню");
-
-} else if ($message == '🏢 Города') {
-    $inlineId = 3;
-    makeInline($id, $inlineId);
-
-} else if ($message == '💰 Баланс') {
-    $inlineId = 4;
-    makeInline($id, $inlineId);
-
-} else if ($message == '💁 Поддержка') {
-    $inlineId = 5;
-    makeInline($id, $inlineId);
-
-} else if ($isAdmin && $message == 'Admin панель') {
-    $qiwi = mysqli_fetch_row($mysqli->query("select * from qiwi"));
-    $number = $qiwi[0];
-    $bearer = $qiwi[1];
-    $balance = qiwiGetBalance($number, $bearer);
-    $number = preg_replace("/.{4}$/", '****', $number);
-    $bearer = preg_replace("/.{5}$/", '*****', $bearer);
-    $num = mysqli_num_rows($mysqli->query("select * from users"));
-    $text = "<b>Qiwi кошелек:</b> +$number\n" .
-        "<b>Токен:</b> $bearer\n" .
-        "<b>Текущий баланс:</b> $balance\n" .
-        "<b>Людей в боте:</b> $num";
-    sendMessage($token, $id, $text, createReplyMarkup([
-        [createCallbackData("Сменить кошелек", "changeQiwi")],
-        [createCallbackData("Совершить перевод", "sendQiwi")]
-    ]));
-
 } else
 
     if (stristr($lastMessage, 'changeMessage.')) {
         $inlineId = str_replace('changeMessage.', '', $lastMessage);
         $c = 0;
         if ($message) {
-            $url = "https://api.telegram.org/bot" . $token . "/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode($message);
+            $link = "/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode($message);
+            $url = "https://api.telegram.org/bot" . $token . $link;
             $c = 1;
         } else if (isset($output['message']["photo"])) {
 
             $file_id = $output['message']["photo"][count($output['message']["photo"]) - 1]['file_id'];
             $caption = $output['message']["caption"];
-            $url = "https://api.telegram.org/bot$token/sendPhoto?parse_mode=html&disable_web_page_preview=1&photo=$file_id&caption=" . urlencode($caption);
+
+            $link = "/sendPhoto?parse_mode=html&disable_web_page_preview=1&photo=$file_id&caption=" . urlencode($caption);
+            $url = "https://api.telegram.org/bot" . $token . $link;
             $c = 1;
         } else if (isset($output['message']["video"])) {
 
             $file_id = $output['message']["video"]['file_id'];
             $caption = $output['message']["caption"];
-            $url = "https://api.telegram.org/bot$token/sendVideo?parse_mode=html&disable_web_page_preview=1&video=$file_id&caption=" . urlencode($caption);
+
+            $link = "/sendVideo?parse_mode=html&disable_web_page_preview=1&video=$file_id&caption=" . urlencode($caption);
+            $url = "https://api.telegram.org/bot" . $token . $link;
 
             $c = 1;
         } else if (isset($output['message']["animation"])) {
 
             $file_id = $output['message']["animation"]['file_id'];
             $caption = $output['message']["caption"];
-            $url = "https://api.telegram.org/bot$token/sendAnimation?parse_mode=html&disable_web_page_preview=1&animation=$file_id&caption=" . urlencode($caption);
+
+            $link = "/sendAnimation?parse_mode=html&disable_web_page_preview=1&animation=$file_id&caption=" . urlencode($caption);
+            $url = "https://api.telegram.org/bot" . $token . $link;
 
             $c = 1;
         }
-        if (isset($url)) {
-            $url = json_encode([[$url, 0]]);
+        if (isset($link)) {
+            $url = json_encode([[$link, 0]]);
             $oldUrl = mysqli_fetch_row($mysqli->query("select * from buttons where id = '$inlineId'"))[1];
             $mysqli->query("update buttons set link = '$url' where id = '$inlineId'");
-            if (makeInline($id, $inlineId)) {
+            if (makeInline($token, $id, $inlineId)) {
 
                 $mysqli->query("update buttons set link = '$url' where id = '$inlineId'");
-                sendMessageMain($token, $id, "Сообщение установлено");
+                sendMessage($token, $id, "Сообщение установлено");
             } else {
 
                 $mysqli->query("update buttons set link = '$oldUrl' where id = '$inlineId'");
@@ -308,9 +308,8 @@ if ($data) {
             exit();
         }
     } else
-
-        if (stristr($lastMessage, 'addButton.')) {
-            $inlineId = str_replace('addButton.', '', $lastMessage);
+        if (stristr($lastMessage, 'addButtonNewLane.')) {
+            $inlineId = str_replace('addButtonNewLane.', '', $lastMessage);
 
 
             if ($message != '' && strlen($message) < 60) {
@@ -322,12 +321,18 @@ if ($data) {
                 $link = $link . "&chat_id=$id";
                 $buttonsArray = $row[2];
                 $buttonsArray = json_decode(jsonFromSQL($buttonsArray), true);
-                $buttonsArray[] = [$button, $buttonId];
+                $buttonsArray[] = [[$button, $buttonId]];
                 $buttonsArray = jsonToSQL(json_encode($buttonsArray));
+                sendMessage($token, $id, $buttonsArray);
                 $mysqli->query("update buttons set buttons = '$buttonsArray' WHERE id = '$inlineId'");
-                $mysqli->query("insert into buttons values(0,'[[\"https://api.telegram.org/bot$token/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode("Текст не задан") . "\",0]]','[]')");
-                sendMessage($token, $id, "Кнопка добавлена");
-                makeInline($id, $inlineId);
+                $mysqli->query("insert into buttons values(0,'[[\"/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode("Текст не задан") . "\",0]]','[[]]', $inlineId, 0)");
+                if($inlineId == 1) {
+                    sendMessageMain($token, $id, "Кнопка добавлена");
+                } else {
+
+                    sendMessage($token, $id, "Кнопка добавлена");
+                    makeInline($token, $id, $inlineId);
+                }
             } else {
                 sendMessage($token, $id, "Некорректное название кнопки. Оно должно быть текстовым (до 60 знаков)\n" .
                     "Попробуй еще раз", createReplyMarkup([
@@ -335,55 +340,105 @@ if ($data) {
                 ]));
                 exit();
             }
-        } else
+        }  else
+            if (stristr($lastMessage, 'addButtonAfter.')) {
+                $arr = explode('.', $lastMessage);
+                $inlineId = $arr[1];
+                $bId = $arr[2];
 
+                if ($message != '' && strlen($message) < 60) {
+                    $button = $message;
+                    $buttonId = mysqli_fetch_row($mysqli->query("select id from buttons order by id desc limit 1"))[0] + 1;
+
+                    $row = mysqli_fetch_row($mysqli->query("select * from buttons where id = '$inlineId'"));
+                    $link = $row[1];
+                    $link = $link . "&chat_id=$id";
+                    $buttonsArray = $row[2];
+                    $buttonsArray = json_decode(jsonFromSQL($buttonsArray), true);
+                    $opz = [];
+                    foreach ($buttonsArray as $i => $subButtonsArray) {
+                        $opz1 = [];
+                        foreach ($subButtonsArray as $b){
+                            $opz1[] = $b;
+                            if($b[1] == $bId)
+                                $opz1[] = [$button, $buttonId];
+                        }
+                        $k = 1;
+                        $opz[] = $opz1;
+                    }
+                    $buttonsArray = $opz;
+                    $buttonsArray = jsonToSQL(json_encode($buttonsArray));
+                    $mysqli->query("update buttons set buttons = '$buttonsArray' WHERE id = '$inlineId'");
+                    $mysqli->query("insert into buttons values(0,'[[\"/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode("Текст не задан") . "\",0]]','[[]]', $inlineId, 0)");
+                    if($inlineId == 1) {
+                        sendMessageMain($token, $id, "Кнопка добавлена");
+                    } else {
+
+                        sendMessage($token, $id, "Кнопка добавлена");
+                        makeInline($token, $id, $inlineId);
+                    }
+                } else {
+                    sendMessage($token, $id, "Некорректное название кнопки. Оно должно быть текстовым (до 60 знаков)\n" .
+                        "Попробуй еще раз", createReplyMarkup([
+                        [createCallbackData("Отмена", "exit")]
+                    ]));
+                    exit();
+                }
+            } else
             if (stristr($lastMessage, 'addMessage.')) {
                 $c = 0;
                 $inlineId = str_replace('addMessage.', '', $lastMessage);
-                if ($message) {
-                    $url = "https://api.telegram.org/bot" . $token . "/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode($message);
-                    $c = 1;
-                } else if (isset($output['message']["photo"])) {
+            if ($message) {
+                $link = "/sendMessage?parse_mode=html&disable_web_page_preview=1&text=" . urlencode($message);
+                $url = "https://api.telegram.org/bot" . $token . $link;
+                $c = 1;
+            } else if (isset($output['message']["photo"])) {
 
-                    $file_id = $output['message']["photo"][count($output['message']["photo"]) - 1]['file_id'];
-                    $caption = $output['message']["caption"];
-                    $url = "https://api.telegram.org/bot$token/sendPhoto?parse_mode=html&disable_web_page_preview=1&photo=$file_id&caption=" . urlencode($caption);
-                    $c = 1;
-                } else if (isset($output['message']["video"])) {
+                $file_id = $output['message']["photo"][count($output['message']["photo"]) - 1]['file_id'];
+                $caption = $output['message']["caption"];
 
-                    $file_id = $output['message']["video"]['file_id'];
-                    $caption = $output['message']["caption"];
-                    $url = "https://api.telegram.org/bot$token/sendVideo?parse_mode=html&disable_web_page_preview=1&video=$file_id&caption=" . urlencode($caption);
+                $link = "/sendPhoto?parse_mode=html&disable_web_page_preview=1&photo=$file_id&caption=" . urlencode($caption);
+                $url = "https://api.telegram.org/bot" . $token . $link;
+                $c = 1;
+            } else if (isset($output['message']["video"])) {
 
-                    $c = 1;
-                } else if (isset($output['message']["animation"])) {
+                $file_id = $output['message']["video"]['file_id'];
+                $caption = $output['message']["caption"];
 
-                    $file_id = $output['message']["animation"]['file_id'];
-                    $caption = $output['message']["caption"];
-                    $url = "https://api.telegram.org/bot$token/sendAnimation?parse_mode=html&disable_web_page_preview=1&animation=$file_id&caption=" . urlencode($caption);
+                $link = "/sendVideo?parse_mode=html&disable_web_page_preview=1&video=$file_id&caption=" . urlencode($caption);
+                $url = "https://api.telegram.org/bot" . $token . $link;
 
-                    $c = 1;
-                }
+                $c = 1;
+            } else if (isset($output['message']["animation"])) {
+
+                $file_id = $output['message']["animation"]['file_id'];
+                $caption = $output['message']["caption"];
+
+                $link = "/sendAnimation?parse_mode=html&disable_web_page_preview=1&animation=$file_id&caption=" . urlencode($caption);
+                $url = "https://api.telegram.org/bot" . $token . $link;
+
+                $c = 1;
+            }
                 if (isset($url)) {
 
-                    $urlId = rand(0, 10e8);
 
                     $row = mysqli_fetch_row($mysqli->query("select * from buttons where id = '$inlineId'"));
+
+                    $urlId = $row[4] + 1;
 
                     $urlArray = $row[1];
                     $urlArrayOld = $urlArray;
                     $urlArray = json_decode($urlArray, true);
-                    $urlArray[] = [$url, $urlId];
+                    $urlArray[] = [$link, $urlId];
                     $urlArray = json_encode($urlArray);
-                    $mysqli->query("update buttons set link = '$urlArray' WHERE id = '$inlineId'");
+                    $mysqli->query("update buttons set link = '$urlArray', lastMessageId = $urlId WHERE id = '$inlineId'");
 
 
-                    if (makeInline($id, $inlineId)) {
+                    if (makeInline($token, $id, $inlineId)) {
                         sendMessage($token, $id, "Сообщение добавлено");
 
                     } else {
 
-                        $mysqli->query("update buttons set link = '$urlArrayOld' WHERE id = '$inlineId'");
                         sendMessage($token, $id, "Ошибка сообщения. Попробуй еще раз", createReplyMarkup([
                             [createCallbackData("Отмена", "exit")]
                         ]));
@@ -402,38 +457,37 @@ if ($data) {
                 if ($lastMessage == '/json') {
                     sendMessage($token, $id, $kk);
                     exit();
-                } else if(stristr($lastMessage, 'numberType.')){
+                } else if (stristr($lastMessage, 'numberType.')) {
                     $operator = explode('.', $lastMessage)[1];
                     $numberType = explode('.', $lastMessage)[2];
                     $table = new Table();
-                    if($message == '89' || $message == '9' || $message == '8') {
+                    if ($message == '89' || $message == '9' || $message == '8') {
                         sendMessage($token, $id, "Все номера содержат '$message', ведите поточнее", createReplyMarkup([
                             [createCallbackData("Искать еще раз", $lastMessage)],
-                            [createCallbackData("Назад", "operator.$operator")],
-                            [createCallbackData("Выход", "exit")],
+                            [createCallbackData("🔙Назад", "operator.$operator")],
+                            [createCallbackData("❌Выход", "exit")],
                         ]));
                         exit();
                     }
                     $numbers = $table->find_numbers($operator, $numberType, $message);
-                    if(count($numbers)){
-                    $text = "Список подходящих номеров:\n";
-                    $numbers = split_numbers($numbers);
-                    for($i = 0; $i < count($numbers) - 1; $i++){
-                        sendMessage($token, $id,$numbers[$i]);
-                    }
-                    sendMessage($token, $id, $numbers[count($numbers) - 1], createReplyMarkup([
+                    if (count($numbers)) {
+                        $text = "Список подходящих номеров:\n";
+                        $numbers = split_numbers($numbers);
+                        for ($i = 0; $i < count($numbers) - 1; $i++) {
+                            sendMessage($token, $id, $numbers[$i]);
+                        }
+                        sendMessage($token, $id, $numbers[count($numbers) - 1], createReplyMarkup([
                             [createCallbackData("Искать еще раз", $lastMessage)],
-                            [createCallbackData("Назад", "operator.$operator")],
-                            [createCallbackData("Выход", "exit")],
+                            [createCallbackData("🔙Назад", "operator.$operator")],
+                            [createCallbackData("❌Выход", "exit")],
                         ]));
                     } else {
                         sendMessage($token, $id, "Подходящих номеров не найдено", createReplyMarkup([
                             [createCallbackData("Искать еще раз", $lastMessage)],
-                            [createCallbackData("Назад", "operator.$operator")],
-                            [createCallbackData("Выход", "exit")],
+                            [createCallbackData("🔙Назад", "operator.$operator")],
+                            [createCallbackData("❌Выход", "exit")],
                         ]));
                     }
-
 
 
                 } else
