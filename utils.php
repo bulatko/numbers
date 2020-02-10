@@ -254,7 +254,7 @@ function split_numbers($numbers)
     while ($c != strlen($numbers) && strlen($numbers)) {
 
 
-        $c = min(3000, strlen($numbers));
+        $c = min(4000, strlen($numbers));
         $c0 = $c;
         while ($numbers[$c - 1] != '.') {
             $c--;
@@ -272,3 +272,15 @@ function split_numbers($numbers)
     return $arr;
 }
 
+function to_uuper($str){
+    $s = $str;
+    $lower = "йцукенгшщзхъфывапролджэячсмитьбю";
+    $upper = "ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ";
+    for($i = 0; $i < strlen($str); $i++){
+        for($j = 0; $j < strlen($lower); $j++){
+            if($str[$i] == $lower[$j])
+                $s[$i] = $upper[$j];
+        }
+    }
+    return $s;
+}
