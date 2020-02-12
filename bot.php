@@ -19,25 +19,21 @@ if (isset($output['callback_query']['data'])) {
     $message_id = $output['message']['message_id'];
 }
 
-$isAdmin = 0;
-$adminsArray = [
-    970326936,
-    171961446
-];
 
 if($id < 0) {
     $exists = (bool)mysqli_num_rows($mysqli->query("SELECT * FROM users WHERE id = '$id'"));
     if(!$exists){
         if(isset($output['message']['new_chat_participant'])){
             $inviter_id = $output['message']['from']['id'];
-            if (!in_array($inviter_id, $adminsArray))
+            if (!mysqli_num_rows($mysqli->query("select id from users where id = '$inviter_id' and isAdmin = 1")))
                 exit();
             else {
                 $group_name = $output['message']['chat']['title'];
                 $mysqli->query("INSERT INTO users VALUES(
 '$id',
 '$group_name',
-''
+'',
+0
 )
 ");
                 sendMessage($token, $id, "Бот для поиска номеров успешно добавлен. " .
@@ -80,7 +76,6 @@ if($id < 0) {
 
     exit();
 }
-if (in_array($id, $adminsArray)) $isAdmin = 1;
 $exists = (bool)mysqli_num_rows($mysqli->query("SELECT * FROM users WHERE id = '$id'"));
 if (!$exists) {
     $username = $output['message']['from']['first_name'] . " " . $output['message']['from']['last_name'];
@@ -88,7 +83,8 @@ if (!$exists) {
     $mysqli->query("INSERT INTO users VALUES(
 '$id',
 '$username',
-''
+'',
+0
 )
 ");
     sendMessageMain($token, $id, "Регистрация прошла успешно");
@@ -98,6 +94,7 @@ $result = $mysqli->query("SELECT * FROM users WHERE id = '$id' limit 1");
 $row = mysqli_fetch_row($result);
 $lastMessage = $row[2];
 $username = $output['message']['from']['first_name'];
+$isAdmin = $row[3];
 if ($data) {
     $callback_query_id = $output['callback_query']['id'];
     $username = $output['callback_query']['from']['first_name'];
@@ -263,9 +260,29 @@ if ($data) {
         sendMessage($token, $id, $text,
             createReplyMarkup([
                 [createCallbackData("Запустить рассылку", "makeDistribution")],
+                [createCallbackData("Добавить админа", "addAdmin")],
                 [createCallbackData("❌Выход", "exit")]
             ]));
 
+
+    } else if ($data == 'addAdmin') {
+
+        $people_count = mysqli_num_rows($mysqli->query("select * from users"));
+
+        $text = "Введи ID пользователя, которого хочешь добавить в админы.\n" .
+            "Свой ID можно узнать, отправив боту команду /id";
+
+        sendMessage($token, $id, $text,
+            createReplyMarkup([
+                [createCallbackData("❌Выход", "exit")]
+            ]));
+        setLastMessage($mysqli, $id, $data);
+
+    } else if (stristr($data, 'confirmAddingAdmin.')) {
+            $addId = explode(".", $data)[1];
+            deleteMessage($token, $id, $message_id);
+            $mysqli->query("update users set isAdmin = 1 where id = '$addId'");
+        answerCallbackQuery($token, $callback_query_id, "Пользователь добавлен в админы");
 
     } else if ($data == 'makeDistribution') {
 
@@ -571,7 +588,32 @@ if ($data) {
                             ]));
                         setLastMessage($mysqli, $id, $url);
                         exit();
-                    } else if (stristr($lastMessage, 'numberType.')) {
+                    }else
+
+                        if ($isAdmin && $lastMessage == 'addAdmin') {
+                            $addId = $message;
+                            if(mysqli_num_rows($mysqli->query("select * from users where id = '$addId'"))){
+                                $text = "Подтверди добавление <a href='tg://user?id=$addId'>этого пользователя</a> в <b>админы</b>";
+                                sendMessage($token, $id, $text, createReplyMarkup([
+                                    [
+                                        createCallbackData("Подтвердить", "confirmAddingAdmin.$addId")
+                                    ],
+                                    [
+                                        createCallbackData("Отмена", "exit")
+                                    ]
+                                ]));
+                            } else {
+                                sendMessage($token, $id, "Нет пользователя с таким ID, попробуй еще раз.\n" .
+                                    "Для того, чтобы узнать свой ID, необходимо отправить боту сообщение /id",
+                                createReplyMarkup([
+                                    [
+                                        createCallbackData("Отмена", "exit")
+                                    ]
+                                ]));
+                                exit();
+                            }
+
+                        } else if (stristr($lastMessage, 'numberType.')) {
                     $operator = explode('.', $lastMessage)[1];
                     $numberType = explode('.', $lastMessage)[2];
                     $table = new Table();
