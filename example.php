@@ -22,21 +22,17 @@ $spreadsheetId = $SPREADSHEET_ID;
 $operator = ["МТС", "МЕГАФОН", "БИЛАЙН", "ТЕЛЕ2", "БЕЗЛИМИТ"];
 $type = ["БРОНЗА", "СЕРЕБРО", "ЗОЛОТО", "ПЛАТИНА", "БРИЛЛИАНТ"];
 
-$contains = '12';
-$values = [];
+$mask = array_from_mask("xyyx");
 
-for($i = 0; $i < 400000; $i++){
-    $n = rand(89000000000, 89999999999);
-    $p = (1000 * rand(1,30));
-    $values[] = [$n, $p];
+$arr = ['891234545890',
+    '891234565890',
+    '891234444890',
+    '891236446890',
+    '891237899890',
+    '891231236767',
+    '891234645450',
+    '891234567890'
+];
+foreach ($arr as $item){
+    echo "$item - " . (string)contains_mask($item, $mask) . "<BR>";
 }
-
-
-$body    = new Google_Service_Sheets_ValueRange( [ 'values' => $values ] );
-
-// valueInputOption - определяет способ интерпретации входных данных
-// https://developers.google.com/sheets/api/reference/rest/v4/ValueInputOption
-// RAW | USER_ENTERED
-$options = array( 'valueInputOption' => 'RAW' );
-
-$service->spreadsheets_values->update( $spreadsheetId, 'МТС ЗОЛОТО!A1', $body, $options );

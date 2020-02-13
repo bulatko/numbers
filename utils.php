@@ -274,8 +274,8 @@ function split_numbers($numbers)
 
 function to_uuper($str){
     $s = $str;
-    $lower = "йцукенгшщзхъфывапролджэячсмитьбю";
-    $upper = "ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ";
+    $lower = "йцукенгшщзхъфывапролджэячсмитьбюqwertyuiopasdfghjklzxcvbnm";
+    $upper = "ЙЦУКЕНГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮQWERTYUIOPASDFGHJKLZXCVBNM";
     for($i = 0; $i < strlen($str); $i++){
         for($j = 0; $j < strlen($lower); $j++){
             if($str[$i] == $lower[$j])
@@ -283,4 +283,59 @@ function to_uuper($str){
         }
     }
     return $s;
+}
+
+function contains_mask($str, $mask){
+
+    for($i = 0; $i + strlen($mask['str']) - 1 < strlen($str); $i++){
+        $new_str = substr($str, $i, strlen($mask['str']));
+        if(is_mask($new_str, $mask))
+            return true;
+    }
+    return false;
+
+}
+
+function is_mask($string, $mask){
+    $mask_string = $mask['str'];
+    for($i = 0; $i < strlen($mask_string); $i++)
+        if(is_numeric($mask_string[$i]))
+            if($mask_string[$i] != $string[$i])
+                return 0;
+    $indexes = [];
+            foreach ($mask['values'] as $item){
+                $indexes[] = $item[0];
+                for($i = 1; $i < count($item); $i++)
+                    if($string[$item[$i]] != $string[$item[$i - 1]])
+                        return 0;
+            }
+
+            for ($i = 0; $i < count($indexes); $i++){
+                for($j = $i + 1; $j < count($indexes); $j++)
+                    if($string[$indexes[$i]] == $string[$indexes[$j]])
+                        return 0;
+            }
+
+            return 1;
+}
+
+function array_from_mask($str){
+    $arr = [];
+    $arr['str'] = $str;
+    $arr['values'] = [];
+    $found = [];
+    for($i = 0; $i < strlen($str); $i++){
+        if(!is_numeric($str[$i])){
+            if(!in_array($str[$i], $found))
+            {
+                $found[] = $str[$i];
+                $arr['values'][$str[$i]] = [$i];
+            } else{
+                $arr['values'][$str[$i]][] = $i;
+            }
+
+
+        }
+    }
+    return $arr;
 }

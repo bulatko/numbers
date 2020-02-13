@@ -24,13 +24,13 @@ class Table
 
         $this->response = $service->spreadsheets->get($this->id);
     }
-    public function find_numbers($operator, $type, $str){
+    public function find_numbers($operator, $type, $str, $isMask = 0){
     $operators = ["МТС", "МЕГАФОН", "БИЛАЙН", "ТЕЛЕ2", "БЕЗЛИМИТ"];
     $types = ["БРОНЗА", "СЕРЕБРО", "ЗОЛОТО", "ПЛАТИНА", "БРИЛЛИАНТ"];
         if($operator == -1){
             $t = "";
             for($i = 0; $i < count($operators); $i++){
-                $res = $this->find_numbers($i, $type, $str);
+                $res = $this->find_numbers($i, $type, $str, $isMask);
                 if(strlen($res))
                     $t .= $res . "\n";
             }
@@ -40,7 +40,7 @@ class Table
         if($type == -1){
             $t = "";
             for($i = 0; $i < count($types); $i++){
-                $res = $this->find_numbers($operator, $i, $str);
+                $res = $this->find_numbers($operator, $i, $str, $isMask);
                 if(strlen($res))
                     $t .= $res;
             }
@@ -72,8 +72,14 @@ class Table
         $range = "$operator $type!A1:B$rows_num";
         $response = $this->service->spreadsheets_values->get($this->id, $range)->values;
         foreach ($response as $item) {
-            if(stristr($item[0], $str))
-                $ret[] = $item[0] . " - " . $item[1] . "р.\n";
+            if(!$isMask) {
+                if (stristr($item[0], $str))
+                    $ret[] = $item[0] . " - " . $item[1] . "р.\n";
+            } else {
+
+                if (contains_mask($item[0], $str))
+                    $ret[] = $item[0] . " - " . $item[1] . "р.\n";
+            }
         }
     $return = "";
         if(count($ret)){
