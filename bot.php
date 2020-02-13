@@ -337,6 +337,18 @@ if ($data) {
         $numberType = explode('.', $data)[2];
         sendMessage($token, $id, "Введи цифры, которые будут содержаться в твоем номере.\n" .
             "Например: 777", createReplyMarkup([
+            [createCallbackData("Поиск по маске", "numberTypeMask.$operator.$numberType")],
+            [createCallbackData("🔙Назад", "operator.$operator")],
+            [createCallbackData("❌Выход", "exit")],
+        ]));
+        setLastMessage($mysqli, $id, $data);
+    } else if (stristr($data, 'numberTypeMask.')) {
+        deleteMessage($token, $id, $message_id);
+        $operator = explode('.', $data)[1];
+        $numberType = explode('.', $data)[2];
+        sendMessage($token, $id, "Введи маску, по которой будешь искать номер.\n" .
+            "Например: 123XYXY", createReplyMarkup([
+            [createCallbackData("Обычный поиск", "numberType.$operator.$numberType")],
             [createCallbackData("🔙Назад", "operator.$operator")],
             [createCallbackData("❌Выход", "exit")],
         ]));
@@ -614,41 +626,84 @@ if ($data) {
                             }
 
                         } else if (stristr($lastMessage, 'numberType.')) {
-                    $operator = explode('.', $lastMessage)[1];
-                    $numberType = explode('.', $lastMessage)[2];
-                    $table = new Table();
-                    if ($message == '89' || $message == '9' || $message == '8') {
-                        sendMessage($token, $id, "Все номера содержат '$message', ведите поточнее", createReplyMarkup([
-                            [createCallbackData("Искать еще раз", $lastMessage)],
-                            [createCallbackData("🔙Назад", "operator.$operator")],
-                            [createCallbackData("❌Выход", "exit")],
-                        ]));
-                        exit();
-                    }
-                    sendMessage($token, $id, "Подождите, идёт поиск");
-                    $numbers = $table->find_numbers($operator, $numberType, $message);
-                    if (strlen($numbers)) {
+                            $operator = explode('.', $lastMessage)[1];
+                            $numberType = explode('.', $lastMessage)[2];
+                            $table = new Table();
+                            if ($message == '89' || $message == '9' || $message == '8') {
+                                sendMessage($token, $id, "Все номера содержат '$message', ведите поточнее", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                                exit();
+                            }
+                            sendMessage($token, $id, "Подождите, идёт поиск");
+                            $numbers = $table->find_numbers($operator, $numberType, $message);
+                            if (strlen($numbers)) {
 
-                        $text = "Список подходящих номеров:\n";
-                        $numbers = split_numbers($numbers);
-                        for ($i = 0; $i < count($numbers); $i++) {
-                            sendMessage($token, $id, $numbers[$i]);
-                        }
-                        sendMessage($token, $id, "Поиск завершен", createReplyMarkup([
-                            [createCallbackData("Искать еще раз", $lastMessage)],
-                            [createCallbackData("🔙Назад", "operator.$operator")],
-                            [createCallbackData("❌Выход", "exit")],
-                        ]));
-                    } else {
-                        sendMessage($token, $id, "Подходящих номеров не найдено", createReplyMarkup([
-                            [createCallbackData("Искать еще раз", $lastMessage)],
-                            [createCallbackData("🔙Назад", "operator.$operator")],
-                            [createCallbackData("❌Выход", "exit")],
-                        ]));
-                    }
+                                $text = "Список подходящих номеров:\n";
+                                $numbers = split_numbers($numbers);
+                                for ($i = 0; $i < count($numbers); $i++) {
+                                    sendMessage($token, $id, $numbers[$i]);
+                                }
+                                sendMessage($token, $id, "Поиск завершен", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                            } else {
+                                sendMessage($token, $id, "Подходящих номеров не найдено", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                            }
 
 
-                } else
+                        } else if (stristr($lastMessage, 'numberTypeMask.')) {
+                            $operator = explode('.', $lastMessage)[1];
+                            $numberType = explode('.', $lastMessage)[2];
+                            $table = new Table();
+                            if ($message == '89' || $message == '9' || $message == '8') {
+                                sendMessage($token, $id, "Все номера содержат '$message', ведите поточнее", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                                exit();
+                            }
+                            if (strlen($message) < 3) {
+                                sendMessage($token, $id, "Минимальная длина строки для поиска по маске - 3. Попробуй еще раз", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                                exit();
+                            }
+                            sendMessage($token, $id, "Подождите, идёт поиск");
+                            $numbers = $table->find_numbers($operator, $numberType, $message, 1);
+                            if (strlen($numbers)) {
+
+                                $text = "Список подходящих номеров:\n";
+                                $numbers = split_numbers($numbers);
+                                for ($i = 0; $i < count($numbers); $i++) {
+                                    sendMessage($token, $id, $numbers[$i]);
+                                }
+                                sendMessage($token, $id, "Поиск завершен", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                            } else {
+                                sendMessage($token, $id, "Подходящих номеров не найдено", createReplyMarkup([
+                                    [createCallbackData("Искать еще раз", $lastMessage)],
+                                    [createCallbackData("🔙Назад", "operator.$operator")],
+                                    [createCallbackData("❌Выход", "exit")],
+                                ]));
+                            }
+
+
+                        } else
 
                     if (stristr($lastMessage, 'test111')) {
                         sendMessage($token, $id, $message);

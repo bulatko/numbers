@@ -71,6 +71,8 @@ class Table
 
         $range = "$operator $type!A1:B$rows_num";
         $response = $this->service->spreadsheets_values->get($this->id, $range)->values;
+        if($isMask)
+            $str = array_from_mask($str);
         foreach ($response as $item) {
             if(!$isMask) {
                 if (stristr($item[0], $str))
