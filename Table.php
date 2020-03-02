@@ -39,7 +39,7 @@ class Table
 
         if($type == -1){
             $t = "";
-            for($i = 0; $i < count($types); $i++){
+            for($i = 1; $i < count($types); $i++){
                 $res = $this->find_numbers($operator, $i, $str, $isMask);
                 if(strlen($res))
                     $t .= $res;
@@ -76,11 +76,11 @@ class Table
         foreach ($response as $item) {
             if(!$isMask) {
                 if (stristr($item[0], $str))
-                    $ret[] = $item[0] . " - " . $item[1] . "р.\n";
+                    $ret[] = $item[0] . " - " . $item[1] . ".\n";
             } else {
 
                 if (contains_mask($item[0], $str))
-                    $ret[] = $item[0] . " - " . $item[1] . "р.\n";
+                    $ret[] = $item[0] . " - " . $item[1] . ".\n";
             }
         }
     $return = "";

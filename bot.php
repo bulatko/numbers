@@ -54,7 +54,7 @@ if($id < 0) {
             $operator = $operator[to_uuper($arr[1])];
             $type = -1;
             $contains = $arr[2];
-            if($contains == '9' || $contains == '8' || $contains == '89'){
+            if($contains == '9' || $contains == '7' || $contains == '79'){
                 sendMessage($token, $id, "Все номера содержут \"$contains\". Введите поточнее");
             }else{
                 sendMessage($token, $id, "Подождите, идёт поиск");
@@ -320,9 +320,16 @@ if ($data) {
     } else if (stristr($data, 'operator.')) {
         deleteMessage($token, $id, $message_id);
         $operator = explode('.', $data)[1];
+        if($operator == 4){
+            sendMessage($token, $id, "Выбери разряд номера", createReplyMarkup([
+                [createCallbackData("💍Платина", "numberType.$operator.3")],
+                [createCallbackData("🔙Назад", "findNumber"),
+                    createCallbackData("❌Выход", "exit")],
+
+            ]));
+        } else
         sendMessage($token, $id, "Выбери разряд номера", createReplyMarkup([
-            [createCallbackData("🥉 Бронза", "numberType.$operator.0"),
-                createCallbackData("🥈 Серебро", "numberType.$operator.1"),
+            [createCallbackData("🥈 Серебро", "numberType.$operator.1"),
                 createCallbackData("🥇Золото", "numberType.$operator.2")],
             [createCallbackData("💍Платина", "numberType.$operator.3"),
                 createCallbackData("💎Бриллиант", "numberType.$operator.4")],
