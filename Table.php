@@ -40,9 +40,13 @@ class Table
         if($type == -1){
             $t = "";
             for($i = 1; $i < count($types); $i++){
-                $res = $this->find_numbers($operator, $i, $str, $isMask);
-                if(strlen($res))
-                    $t .= $res;
+                try {$res = $this->find_numbers($operator, $i, $str, $isMask);
+                    if(strlen($res))
+                        $t .= $res;
+                } catch (Exception $e) {
+                    continue;
+                }
+
             }
             return $t;
         }
